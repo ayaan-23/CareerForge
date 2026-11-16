@@ -1,0 +1,745 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CareerForge | Mock Interview</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        /* =====================================
+           CAREERFORGE - MIDNIGHT BLACK & GOLD
+           ===================================== */
+
+        :root {
+            --bg: #111111;
+            --card: #202020;
+            --card-alt: #292929;
+            --gold: #D4A94D;
+            --gold-light: #F5D58A;
+            --text: #F5F5F5;
+            --muted: #B9B9B9;
+            --border: #414141;
+            --green: #55C995;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            min-height: 100%;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        body {
+            background: var(--bg) !important;
+            color: var(--text) !important;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        /* Main container */
+
+        .interview-container {
+            width: 100%;
+            max-width: 950px;
+            margin: 30px auto;
+            padding: 30px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            box-shadow: 0 12px 35px rgba(0,0,0,.30);
+        }
+
+        /* Header */
+
+        .interview-header {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        .interview-header h1 {
+            color: var(--gold-light);
+            font-size: 32px;
+            font-weight: 800;
+        }
+
+        .interview-header p {
+            color: var(--muted);
+            line-height: 1.7;
+        }
+
+        /* Progress */
+
+        .interview-progress {
+            margin: 25px 0 12px;
+            font-weight: bold;
+            color: var(--gold-light);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #383838;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        #progress {
+            height: 100%;
+            width: 5%;
+            background: linear-gradient(
+                90deg,
+                var(--gold),
+                var(--gold-light)
+            );
+            border-radius: 20px;
+            transition: width .3s ease;
+        }
+
+        /* Question card */
+
+        .question-card {
+            background: var(--card-alt);
+            padding: 30px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            margin-top: 25px;
+        }
+
+        .category {
+            display: inline-block;
+            background: #34302a;
+            color: var(--gold-light);
+            border: 1px solid #66532f;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        #question {
+            margin: 25px 0;
+            line-height: 1.6;
+            color: var(--gold-light);
+            font-size: 23px;
+        }
+
+        /* Answer box */
+
+        #answer {
+            width: 100%;
+            min-height: 170px;
+            box-sizing: border-box;
+            padding: 16px;
+            background: #171717;
+            color: var(--text);
+            border: 1px solid #555555;
+            border-radius: 9px;
+            font-size: 16px;
+            line-height: 1.7;
+            resize: vertical;
+            font-family: Arial, sans-serif;
+        }
+
+        #answer:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 2px rgba(212,169,77,.15);
+        }
+
+        #answer::placeholder {
+            color: #888888;
+        }
+
+        /* Voice controls and navigation */
+
+        .voice-controls,
+        .interview-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 22px;
+        }
+
+        .voice-controls button,
+        .interview-buttons button,
+        #finishBtn {
+            padding: 13px 20px;
+            border: none;
+            border-radius: 8px;
+            background: var(--gold);
+            color: #111111;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: .25s ease;
+        }
+
+        .voice-controls button:hover,
+        .interview-buttons button:hover,
+        #finishBtn:hover {
+            background: var(--gold-light);
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Voice status */
+
+        #voiceStatus {
+            color: var(--gold-light);
+            margin-top: 15px;
+            font-size: 14px;
+            min-height: 20px;
+        }
+
+        /* Finish button */
+
+        #finishBtn {
+            background: var(--green);
+            color: #111111;
+            margin-top: 22px;
+            padding: 15px 30px;
+        }
+
+        #finishBtn:hover {
+            background: #78E0B0;
+        }
+
+        /* Form */
+
+        #submitForm {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        /* Footer */
+
+        .interview-footer {
+            text-align: center;
+            color: #777777;
+            margin-top: 30px;
+            font-size: 13px;
+        }
+
+        .interview-footer a {
+            color: var(--gold-light);
+            text-decoration: none;
+        }
+
+        .interview-footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+
+        @media (max-width: 600px) {
+
+            body {
+                padding: 10px;
+            }
+
+            .interview-container {
+                padding: 18px;
+                margin: 15px auto;
+            }
+
+            .interview-header h1 {
+                font-size: 25px;
+            }
+
+            .question-card {
+                padding: 18px;
+            }
+
+            #question {
+                font-size: 19px;
+            }
+
+            .voice-controls,
+            .interview-buttons {
+                flex-direction: column;
+            }
+
+            .voice-controls button,
+            .interview-buttons button {
+                width: 100%;
+            }
+
+            #finishBtn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="interview-container">
+
+    <!-- HEADER -->
+
+    <div class="interview-header">
+
+        <h1>🎯 CareerForge Mock Interview</h1>
+
+        <p>
+            Practice interview questions based on the company's
+            job requirements and your resume.
+        </p>
+
+    </div>
+
+
+    <!-- PROGRESS -->
+
+    <div class="interview-progress">
+
+        <span>
+            Question <span id="current">1</span>
+        </span>
+
+        <span>
+            of <span id="total">{{ total_questions }}</span>
+        </span>
+
+    </div>
+
+    <div class="progress-bar">
+        <div id="progress"></div>
+    </div>
+
+
+    <!-- QUESTION CARD -->
+
+    <div class="question-card">
+
+        <span id="category" class="category"></span>
+
+        <h2 id="question"></h2>
+
+        <textarea
+            id="answer"
+            placeholder="Type your answer here..."
+            rows="7"></textarea>
+
+
+        <!-- VOICE CONTROLS -->
+
+        <div class="voice-controls">
+
+            <button
+                type="button"
+                id="speakBtn"
+                onclick="speakQuestion()">
+
+                🔊 Listen to Question
+
+            </button>
+
+            <button
+                type="button"
+                id="voiceBtn"
+                onclick="startVoiceAnswer()">
+
+                🎤 Answer by Voice
+
+            </button>
+
+        </div>
+
+        <p id="voiceStatus"></p>
+
+
+        <!-- NAVIGATION BUTTONS -->
+
+        <div class="interview-buttons">
+
+            <button
+                type="button"
+                id="previousBtn"
+                onclick="previousQuestion()">
+
+                ← Previous
+
+            </button>
+
+            <button
+                type="button"
+                id="nextBtn"
+                onclick="nextQuestion()">
+
+                Next Question →
+
+            </button>
+
+            <button
+                type="button"
+                id="skipBtn"
+                onclick="skipQuestion()">
+
+                Skip Question →
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- SUBMIT FORM -->
+
+    <form
+        id="submitForm"
+        method="POST"
+        action="{{ url_for('evaluate_interview') }}">
+
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token() }}">
+
+        <input
+            type="hidden"
+            name="answers"
+            id="answersInput">
+
+        <input
+            type="hidden"
+            name="resume_text"
+            value="{{ resume_text }}">
+
+        <input
+            type="hidden"
+            name="job_description"
+            value="{{ job_desc }}">
+
+        <input
+            type="hidden"
+            name="questions"
+            id="questionsInput">
+
+        <button
+            type="submit"
+            id="finishBtn"
+            style="display:none;">
+
+            Finish Interview
+
+        </button>
+
+    </form>
+
+
+    <!-- FOOTER -->
+
+    <div class="interview-footer">
+
+        <p>CareerForge | Build Your Career. Prove Your Potential.</p>
+
+        <p>
+            Designed & Developed by MD AYAAN AQRAB
+        </p>
+
+        <a
+            href="https://www.linkedin.com/in/md-ayaan-aqrab/"
+            target="_blank"
+            rel="noopener noreferrer">
+
+            LinkedIn Profile ↗
+
+        </a>
+
+    </div>
+
+</div>
+
+
+<!-- INTERVIEW QUESTIONS -->
+
+<script type="application/json" id="interview-data">
+    {{ questions | tojson }}
+</script>
+
+
+<script>
+
+// Interview questions received from Flask
+
+const interviewQuestions = JSON.parse(
+    document.getElementById("interview-data").textContent
+);
+
+let currentIndex = 0;
+
+let answers = new Array(
+    interviewQuestions.length
+).fill("");
+
+let recognition = null;
+
+
+// HTML elements
+
+const questionElement =
+    document.getElementById("question");
+
+const categoryElement =
+    document.getElementById("category");
+
+const answerElement =
+    document.getElementById("answer");
+
+const progressElement =
+    document.getElementById("progress");
+
+
+// Display current question
+
+function displayQuestion() {
+
+    const item = interviewQuestions[currentIndex];
+
+    categoryElement.textContent = item.category;
+
+    questionElement.textContent = item.question;
+
+    document.getElementById("current").textContent =
+        currentIndex + 1;
+
+    document.getElementById("total").textContent =
+        interviewQuestions.length;
+
+    progressElement.style.width =
+        ((currentIndex + 1) / interviewQuestions.length * 100) + "%";
+
+    answerElement.value = answers[currentIndex];
+
+    document.getElementById("previousBtn").style.display =
+        currentIndex === 0 ? "none" : "inline-block";
+
+    document.getElementById("nextBtn").style.display =
+        currentIndex === interviewQuestions.length - 1
+        ? "none"
+        : "inline-block";
+
+    document.getElementById("finishBtn").style.display =
+        currentIndex === interviewQuestions.length - 1
+        ? "inline-block"
+        : "none";
+
+    document.getElementById("voiceStatus").textContent = "";
+
+}
+
+
+// Save current answer
+
+function saveCurrentAnswer() {
+
+    answers[currentIndex] = answerElement.value.trim();
+
+}
+
+
+// Next question
+
+function nextQuestion() {
+
+    saveCurrentAnswer();
+
+    if (!answers[currentIndex]) {
+        alert("Please enter your answer before continuing.");
+        return;
+    }
+
+    if (currentIndex < interviewQuestions.length - 1) {
+        currentIndex++;
+        displayQuestion();
+    }
+
+}
+
+
+// Skip current question
+
+function skipQuestion() {
+
+    answers[currentIndex] = "";
+
+    if (currentIndex < interviewQuestions.length - 1) {
+        currentIndex++;
+        displayQuestion();
+    } else {
+        alert("This is the last question. Click Finish Interview.");
+    }
+
+}
+
+
+// Previous question
+
+function previousQuestion() {
+
+    saveCurrentAnswer();
+
+    if (currentIndex > 0) {
+
+        currentIndex--;
+
+        displayQuestion();
+
+    }
+
+}
+
+
+// Read question aloud
+
+function speakQuestion() {
+
+    if (!("speechSynthesis" in window)) {
+
+        alert("Speech playback is not supported in this browser.");
+
+        return;
+
+    }
+
+    window.speechSynthesis.cancel();
+
+    const speech = new SpeechSynthesisUtterance(
+        interviewQuestions[currentIndex].question
+    );
+
+    speech.lang = "en-IN";
+
+    window.speechSynthesis.speak(speech);
+
+}
+
+
+// Voice answer
+
+function startVoiceAnswer() {
+
+    const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+
+        alert(
+            "Voice recognition is not supported in this browser. Please use text mode."
+        );
+
+        return;
+
+    }
+
+    if (recognition) {
+        recognition.stop();
+    }
+
+    recognition = new SpeechRecognition();
+
+    recognition.lang = "en-IN";
+
+    recognition.continuous = false;
+
+    recognition.interimResults = false;
+
+    document.getElementById("voiceStatus").textContent =
+        "🎤 Listening... Please speak.";
+
+    document.getElementById("voiceBtn").disabled = true;
+
+    recognition.onresult = function(event) {
+
+        const spokenText =
+            event.results[0][0].transcript;
+
+        answerElement.value +=
+            (answerElement.value ? " " : "") + spokenText;
+
+        saveCurrentAnswer();
+
+        document.getElementById("voiceStatus").textContent =
+            "Voice answer captured successfully.";
+
+    };
+
+    recognition.onerror = function(event) {
+
+        document.getElementById("voiceStatus").textContent =
+            "Voice recognition error: " + event.error;
+
+    };
+
+    recognition.onend = function() {
+
+        document.getElementById("voiceBtn").disabled = false;
+
+    };
+
+    recognition.start();
+
+}
+
+
+// Submit interview
+
+document.getElementById("submitForm").addEventListener(
+    "submit",
+    function(event) {
+
+        saveCurrentAnswer();
+
+        // Skipped and unanswered questions are allowed.
+        // They will receive zero marks during evaluation.
+
+        document.getElementById("answersInput").value =
+            JSON.stringify(answers);
+
+        document.getElementById("questionsInput").value =
+            JSON.stringify(interviewQuestions);
+
+    }
+);
+
+
+// Initial display
+
+if (interviewQuestions.length > 0) {
+
+    displayQuestion();
+
+} else {
+
+    questionElement.textContent =
+        "No interview questions were generated.";
+
+    document.getElementById("finishBtn").disabled = true;
+
+}
+
+</script>
+
+</body>
+</html>

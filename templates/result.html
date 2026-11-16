@@ -1,0 +1,1126 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CareerForge | Resume Analysis Results</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        /* =====================================
+           CAREERFORGE BLACK & GOLD THEME
+           ===================================== */
+
+        :root {
+            --bg: #111111;
+            --card: #202020;
+            --card-alt: #292929;
+            --gold: #D4A94D;
+            --gold-light: #F5D58A;
+            --text: #F5F5F5;
+            --muted: #B9B9B9;
+            --border: #414141;
+            --green: #55C995;
+            --red: #EF7777;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 30px 16px;
+            background: var(--bg) !important;
+            color: var(--text) !important;
+            font-family: Arial, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        .main-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 30px;
+            box-shadow: 0 12px 35px rgba(0,0,0,.3);
+        }
+
+        h1, h2, h3, h4 {
+            color: var(--gold-light);
+        }
+
+        p, li, span {
+            color: var(--muted);
+        }
+
+        strong {
+            color: var(--gold-light);
+        }
+
+        .page-title {
+            text-align: center;
+            font-size: 34px;
+            font-weight: 800;
+            margin-bottom: 30px;
+            color: var(--gold-light);
+        }
+
+        .section-card {
+            background: var(--card-alt);
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            padding: 22px;
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 22px;
+            font-weight: bold;
+            margin-top: 0;
+            margin-bottom: 18px;
+        }
+
+        .muted-text {
+            color: var(--muted);
+        }
+
+        /* Overall score */
+
+        .overall-score {
+            text-align: center;
+            padding: 30px 15px;
+            margin-bottom: 25px;
+        }
+
+        .score-number {
+            font-size: 58px;
+            font-weight: 800;
+            color: var(--gold);
+            margin: 10px 0;
+        }
+
+        /* Interview section */
+
+        .interview-box {
+            text-align: center;
+            background: #29251d;
+            border: 1px solid #66532f;
+            border-radius: 14px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .interview-box p {
+            line-height: 1.7;
+        }
+
+        /* Progress bars */
+
+        progress {
+            width: 100%;
+            height: 13px;
+            border: none;
+            border-radius: 20px;
+            overflow: hidden;
+            appearance: none;
+            -webkit-appearance: none;
+            background: #383838;
+        }
+
+        progress::-webkit-progress-bar {
+            background: #383838;
+            border-radius: 20px;
+        }
+
+        progress::-webkit-progress-value {
+            background: linear-gradient(
+                90deg,
+                var(--gold),
+                var(--gold-light)
+            );
+            border-radius: 20px;
+        }
+
+        progress::-moz-progress-bar {
+            background: linear-gradient(
+                90deg,
+                var(--gold),
+                var(--gold-light)
+            );
+            border-radius: 20px;
+        }
+
+        /* Score rows */
+
+        .score-row {
+            margin-bottom: 22px;
+        }
+
+        .score-label {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .score-label strong {
+            color: var(--gold-light);
+        }
+
+        /* Screening rows */
+
+        .screening-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 13px;
+            margin-bottom: 10px;
+            background: #1b1b1b;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .passed {
+            color: var(--green);
+            font-weight: bold;
+        }
+
+        .failed {
+            color: var(--red);
+            font-weight: bold;
+        }
+
+        /* Keyword and skill cards */
+
+        .two-column {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .inner-card {
+            background: #1b1b1b;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 18px;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .skill-tag {
+            display: inline-block;
+            padding: 6px 12px;
+            margin: 3px;
+            border-radius: 20px;
+            background: #34302a;
+            border: 1px solid #66532f;
+            color: var(--gold-light);
+            font-size: 13px;
+        }
+
+        /* Project cards */
+
+        .project-card {
+            background: #1b1b1b;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .project-card h3 {
+            font-size: 20px;
+            margin-top: 0;
+        }
+
+        .project-card h4 {
+            color: var(--gold);
+        }
+
+        .score-details {
+            background: #292929;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .score-details p {
+            margin: 8px 0;
+        }
+
+        /* Recommendations */
+
+        .recommendation-card {
+            background: #29251d;
+            border-left: 4px solid var(--gold);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .priority {
+            display: inline-block;
+            padding: 4px 9px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            background: #34302a;
+            color: var(--gold-light);
+            border: 1px solid #66532f;
+        }
+
+        /* Buttons */
+
+        .gold-button {
+            display: inline-block;
+            background: var(--gold);
+            color: #111111 !important;
+            padding: 13px 25px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 15px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: .25s ease;
+        }
+
+        .gold-button:hover {
+            background: var(--gold-light);
+            transform: translateY(-2px);
+        }
+
+        .button-area {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 28px 0;
+        }
+
+        /* Footer */
+
+        .footer {
+            text-align: center;
+            color: #777;
+            margin-top: 30px;
+            padding: 20px;
+        }
+
+        /* Responsive */
+
+        @media (max-width: 700px) {
+            body {
+                padding: 12px;
+            }
+
+            .main-card {
+                padding: 17px;
+            }
+
+            .page-title {
+                font-size: 26px;
+            }
+
+            .score-number {
+                font-size: 45px;
+            }
+
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+
+            .section-card {
+                padding: 16px;
+            }
+
+            .screening-row {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .gold-button {
+                width: 100%;
+                text-align: center;
+            }
+        }
+
+/* Final CareerForge project styling fix */
+
+.project-card h3,
+.project-card h4 {
+    color: #F5D58A !important;
+}
+
+.project-card {
+    background: #1B1B1B !important;
+    border: 1px solid #414141 !important;
+}
+
+.project-card p,
+.project-card span {
+    color: #B9B9B9;
+}
+
+.project-card strong {
+    color: #D4A94D !important;
+}
+
+    </style>
+</head>
+
+<body>
+
+<div class="main-container">
+
+    <div class="main-card">
+
+        <!-- PAGE HEADING -->
+
+        <h1 class="page-title">
+            🎯 CareerForge Resume Analysis
+        </h1>
+
+
+        <!-- MOCK INTERVIEW -->
+
+        <div class="interview-box">
+
+            <h2 class="section-title">
+                🎯 Prepare for Your Company Interview
+            </h2>
+
+            <p>
+                Practice 20 personalized interview questions based on
+                your resume and the company's job requirements.
+            </p>
+
+            <form method="POST"
+                  action="{{ url_for('start_interview') }}">
+
+                <input type="hidden"
+                       name="csrf_token"
+                       value="{{ csrf_token() }}">
+
+                <input type="hidden"
+                       name="resume_text"
+                       value="{{ resume_text }}">
+
+                <input type="hidden"
+                       name="job_description"
+                       value="{{ job_desc }}">
+
+                <button type="submit" class="gold-button">
+                    🚀 Start Mock Interview
+                </button>
+
+            </form>
+
+        </div>
+
+
+        <!-- OVERALL RESUME SCORE -->
+
+        <div class="overall-score">
+
+            <h2>Overall Resume Match</h2>
+
+            <div class="score-number">
+                {{ match_score }}%
+            </div>
+
+            <p>
+                Estimated compatibility with the job description
+            </p>
+
+        </div>
+
+
+        <!-- ATS COMPATIBILITY -->
+
+        <section class="section-card">
+
+            <h2 class="section-title">
+                📋 ATS Compatibility Checker
+            </h2>
+
+            <p>
+                A basic rule-based estimate of how well your resume
+                meets common ATS checks.
+            </p>
+
+            <div class="overall-score">
+
+                <div class="score-number">
+                    {{ ats_score }}%
+                </div>
+
+                <p>ATS Compatibility Score</p>
+
+            </div>
+
+            <progress value="{{ ats_score }}" max="100"></progress>
+
+            <h3>ATS Screening Results</h3>
+
+            {% for check, passed in ats_checks.items() %}
+
+                <div class="screening-row">
+
+                    <span>{{ check }}</span>
+
+                    {% if passed %}
+                        <span class="passed">✓ Passed</span>
+                    {% else %}
+                        <span class="failed">✗ Needs Improvement</span>
+                    {% endif %}
+
+                </div>
+
+            {% endfor %}
+
+
+            <!-- KEYWORD MATCH -->
+
+            <div class="inner-card">
+
+                <div class="score-label">
+                    <strong>Job Description Keyword Match</strong>
+
+                    <strong>{{ keyword_match_percentage }}%</strong>
+                </div>
+
+                <progress
+                    value="{{ keyword_match_percentage }}"
+                    max="100">
+                </progress>
+
+                <p>
+                    {{ matched_skills|length }} out of
+                    {{ matched_skills|length + missing_skills|length }}
+                    identified job-description skills matched.
+                </p>
+
+            </div>
+
+
+            <!-- MATCHED AND MISSING KEYWORDS -->
+
+            <div class="two-column">
+
+                <div class="inner-card">
+
+                    <h3>✓ Matched Keywords ({{ matched_skills|length }})</h3>
+
+                    {% if matched_skills %}
+
+                        <div class="tag-list">
+                            {% for skill in matched_skills %}
+                                <span class="skill-tag">{{ skill }}</span>
+                            {% endfor %}
+                        </div>
+
+                    {% else %}
+
+                        <p>No matching keywords found.</p>
+
+                    {% endif %}
+
+                </div>
+
+
+                <div class="inner-card">
+
+                    <h3>✗ Missing Keywords ({{ missing_skills|length }})</h3>
+
+                    {% if missing_skills %}
+
+                        <div class="tag-list">
+                            {% for skill in missing_skills %}
+                                <span class="skill-tag">{{ skill }}</span>
+                            {% endfor %}
+                        </div>
+
+                    {% else %}
+
+                        <p>No missing keywords identified.</p>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+
+            <h3>💡 ATS Improvement Recommendations</h3>
+
+            <ul>
+                {% for recommendation in ats_recommendations %}
+                    <li>{{ recommendation }}</li>
+                {% endfor %}
+            </ul>
+
+            <p>
+                <small>
+                    This is an estimated screening score, not a guarantee
+                    of compatibility with every Applicant Tracking System.
+                </small>
+            </p>
+
+        </section>
+
+
+        <!-- RESUME SECTION COMPLETENESS -->
+
+        <section class="section-card">
+
+            <h2 class="section-title">
+                📋 Resume Section Completeness
+            </h2>
+
+            <h3>
+                Completeness Score: {{ section_completeness }}%
+            </h3>
+
+            <p>
+                {{ completed_sections }} out of
+                {{ total_sections }} sections detected.
+            </p>
+
+            {% for section, completed in resume_sections.items() %}
+
+                <div class="screening-row">
+
+                    <span>{{ section }}</span>
+
+                    {% if completed %}
+                        <span class="passed">✓ Detected</span>
+                    {% else %}
+                        <span class="failed">✗ Missing</span>
+                    {% endif %}
+
+                </div>
+
+            {% endfor %}
+
+        </section>
+
+
+        <!-- SCORE BREAKDOWN -->
+
+        <section class="section-card">
+
+            <h2 class="section-title">
+                📊 Score Breakdown
+            </h2>
+
+
+            <!-- SKILL MATCHING -->
+
+            <div class="score-row">
+
+                <div class="score-label">
+                    <span>Skill Matching</span>
+                    <strong>{{ skill_score }}%</strong>
+                </div>
+
+                <progress value="{{ skill_score }}" max="100"></progress>
+
+            </div>
+
+
+            <!-- SEMANTIC SIMILARITY -->
+
+            <div class="score-row">
+
+                <div class="score-label">
+                    <span>Semantic Similarity</span>
+                    <strong>{{ semantic_score }}%</strong>
+                </div>
+
+                <progress value="{{ semantic_score }}" max="100"></progress>
+
+            </div>
+
+
+            <!-- EDUCATION MATCHING -->
+
+            <div class="score-row">
+
+                <div class="score-label">
+                    <span>Education Matching</span>
+                    <strong>{{ education_score }}%</strong>
+                </div>
+
+                <progress value="{{ education_score }}" max="100"></progress>
+
+            </div>
+
+
+            <!-- PROJECT RELEVANCE -->
+
+            <div class="score-row">
+
+                <div class="score-label">
+                    <span>Project Relevance</span>
+                    <strong>{{ project_score }}%</strong>
+                </div>
+
+                <progress value="{{ project_score }}" max="100"></progress>
+
+            </div>
+
+
+            <!-- EXPERIENCE MATCHING -->
+
+            <div class="score-row">
+
+                <div class="score-label">
+                    <span>Experience Matching</span>
+                    <strong>{{ experience_score }}%</strong>
+                </div>
+
+                <progress value="{{ experience_score }}" max="100"></progress>
+
+            </div>
+
+            <p>
+                <small>
+                    The final score is calculated using weighted components.
+                    Individual scores are estimates and are not hiring probabilities.
+                </small>
+            </p>
+
+        </section>
+
+
+        <!-- INDIVIDUAL PROJECT ANALYSIS -->
+
+        <section class="section-card">
+
+            <h2 class="section-title">
+                📁 Individual Project Analysis
+            </h2>
+
+            {% if project_analysis %}
+
+                {% for project in project_analysis %}
+
+                    <div class="project-card">
+
+                        <h3>{{ project.project_name }}</h3>
+
+                        <h4>
+                            Project Relevance: {{ project.relevance_score }}%
+                        </h4>
+
+                        <div class="score-details">
+
+                            <p>
+                                Technology Matching:
+                                {{ project.technology_score }}%
+                            </p>
+
+                            <p>
+                                Development Evidence:
+                                {{ project.development_score }}%
+                            </p>
+
+                            <p>
+                                Technology Breadth:
+                                {{ project.breadth_score }}%
+                            </p>
+
+                        </div>
+
+                        <progress
+                            value="{{ project.relevance_score }}"
+                            max="100">
+                        </progress>
+
+                        <p><strong>Description:</strong></p>
+
+                        <p>{{ project.description }}</p>
+
+                        <p><strong>Matched Technologies:</strong></p>
+
+                        {% if project.technologies %}
+
+                            <div class="tag-list">
+                                {% for tech in project.technologies %}
+                                    <span class="skill-tag">{{ tech }}</span>
+                                {% endfor %}
+                            </div>
+
+                        {% else %}
+
+                            <p>No matching technologies found.</p>
+
+                        {% endif %}
+
+                        <p><strong>All Technologies:</strong></p>
+
+                        <div class="tag-list">
+                            {% for tech in project.all_technologies %}
+                                <span class="skill-tag">{{ tech }}</span>
+                            {% endfor %}
+                        </div>
+
+                        <p><strong>Additional Technologies:</strong></p>
+
+                        <div class="tag-list">
+                            {% for tech in project.extra_technologies %}
+                                <span class="skill-tag">{{ tech }}</span>
+                            {% endfor %}
+                        </div>
+
+                    </div>
+
+                {% endfor %}
+
+            {% else %}
+
+                <p>No individual projects detected in this resume.</p>
+
+            {% endif %}
+
+        </section>
+
+
+        <!-- MATCHED SKILLS -->
+
+        {% if matched_skills %}
+
+            <section class="section-card">
+
+                <h2 class="section-title">
+                    ✅ Skills Present in Resume
+                </h2>
+
+                <p>
+                    {{ matched_skills | join(', ') }}
+                </p>
+
+            </section>
+
+        {% endif %}
+
+
+        <!-- MISSING SKILLS -->
+
+        {% if missing_skills %}
+
+            <section class="section-card">
+
+                <h2 class="section-title">
+                    ❗ Missing Skills
+                </h2>
+
+                <p>
+                    {{ missing_skills | join(', ') }}
+                </p>
+
+            </section>
+
+        {% endif %}
+
+
+        <!-- SKILL GAP RECOMMENDATIONS -->
+
+        <section class="section-card">
+
+            <h2 class="section-title">
+                💡 Recommended Skills to Learn
+            </h2>
+
+            {% if skill_gap_recommendations %}
+
+                <ul>
+
+                    {% for item in skill_gap_recommendations %}
+
+                        <li style="margin-bottom: 18px;">
+
+                            <strong>{{ item.skill }}</strong>
+
+                            {% if item.priority == "High" %}
+
+                                <span class="priority">High Priority</span>
+
+                            {% elif item.priority == "Medium" %}
+
+                                <span class="priority">Medium Priority</span>
+
+                            {% else %}
+
+                                <span class="priority">Low Priority</span>
+
+                            {% endif %}
+
+                            <p>{{ item.recommendation }}</p>
+
+                        </li>
+
+                    {% endfor %}
+
+                </ul>
+
+            {% else %}
+
+                <p>No skill gaps identified for this job description.</p>
+
+            {% endif %}
+
+        </section>
+
+
+        <!-- RESUME IMPROVEMENT SCORECARD -->
+
+        <section class="section-card">
+
+            <h2 class="section-title">
+                📈 Resume Improvement Scorecard
+            </h2>
+
+            <p>
+                A heuristic score based on resume completeness and presentation.
+            </p>
+
+            <div class="overall-score">
+
+                <div class="score-number">
+                    {{ resume_scorecard.total }}/100
+                </div>
+
+                <p>Resume Improvement Score</p>
+
+            </div>
+
+
+            {% for label, key in [
+                ("Resume Sections", "sections"),
+                ("Measurable Achievements", "achievements"),
+                ("Action Verbs", "action_verbs"),
+                ("Project Descriptions", "projects"),
+                ("Resume Length", "length")
+            ] %}
+
+                <div class="score-row">
+
+                    <div class="score-label">
+
+                        <span>{{ label }}</span>
+
+                        <strong>{{ resume_scorecard[key] }}</strong>
+
+                    </div>
+
+                    <progress
+                        value="{{ resume_scorecard[key] }}"
+                        max="{% if key == 'sections' %}40{% elif key == 'achievements' %}20{% elif key == 'action_verbs' %}15{% elif key == 'projects' %}15{% else %}10{% endif %}">
+                    </progress>
+
+                </div>
+
+            {% endfor %}
+
+        </section>
+
+
+        <!-- IMPROVEMENT SUGGESTIONS -->
+
+        {% if suggestions %}
+
+            <section class="section-card">
+
+                <h2 class="section-title">
+                    🛠 Suggestions to Improve Your Resume
+                </h2>
+
+                <ul>
+                    {% for tip in suggestions %}
+                        <li>{{ tip }}</li>
+                    {% endfor %}
+                </ul>
+
+            </section>
+
+        {% endif %}
+
+
+        <!-- CERTIFICATIONS FOUND -->
+
+        <section class="section-card">
+
+            <h2 class="section-title">
+                🎓 Certifications Found in Resume
+            </h2>
+
+            {% if resume_certifications %}
+
+                <ul>
+                    {% for certification in resume_certifications %}
+                        <li>{{ certification }}</li>
+                    {% endfor %}
+                </ul>
+
+            {% else %}
+
+                <p>
+                    No recognized certifications were detected in this resume.
+                </p>
+
+            {% endif %}
+
+        </section>
+
+
+        <!-- JOB DESCRIPTION CERTIFICATIONS -->
+
+        <section class="section-card">
+
+            <h2 class="section-title">
+                📋 Certifications Mentioned in Job Description
+            </h2>
+
+            {% if jd_certifications %}
+
+                <ul>
+                    {% for certification in jd_certifications %}
+                        <li>{{ certification }}</li>
+                    {% endfor %}
+                </ul>
+
+            {% else %}
+
+                <p>
+                    No recognized certifications were mentioned in the job description.
+                </p>
+
+            {% endif %}
+
+        </section>
+
+
+        <!-- MATCHED CERTIFICATIONS -->
+
+        <section class="section-card">
+
+            <h2 class="section-title">
+                ✅ Matching Certifications
+            </h2>
+
+            {% if matched_certifications %}
+
+                <ul>
+                    {% for certification in matched_certifications %}
+                        <li>{{ certification }}</li>
+                    {% endfor %}
+                </ul>
+
+            {% else %}
+
+                <p>No matching certifications found.</p>
+
+            {% endif %}
+
+        </section>
+
+
+        <!-- MISSING CERTIFICATIONS -->
+
+        <section class="section-card">
+
+            <h2 class="section-title">
+                ❗ Missing or Recommended Certifications
+            </h2>
+
+            {% if missing_certifications %}
+
+                <ul>
+                    {% for certification in missing_certifications %}
+                        <li>{{ certification }}</li>
+                    {% endfor %}
+                </ul>
+
+            {% else %}
+
+                <p>No missing certifications identified.</p>
+
+            {% endif %}
+
+        </section>
+
+
+        <!-- DOWNLOAD REPORT -->
+
+        <div class="button-area">
+
+            <a href="{{ url_for('download_report', filename=report_filename) }}"
+               class="gold-button">
+                📄 Download Resume Analysis Report
+            </a>
+
+        </div>
+
+
+        <!-- ANALYZE ANOTHER RESUME -->
+
+        <div class="button-area">
+
+            <a href="{{ url_for('index') }}"
+               class="gold-button">
+                🔄 Analyze Another Resume
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <!-- FOOTER -->
+
+    <footer class="footer">
+
+        <p>CareerForge</p>
+
+        <p>Build Your Career. Prove Your Potential.</p>
+
+        <p>Designed & Developed by MD AYAAN AQRAB</p>
+
+        <p>
+            <a href="https://www.linkedin.com/in/md-ayaan-aqrab/"
+               target="_blank"
+               rel="noopener noreferrer">
+                LinkedIn Profile ↗
+            </a>
+        </p>
+
+        <small>© 2026 CareerForge. All rights reserved.</small>
+
+    </footer>
+
+</div>
+
+</body>
+</html>
