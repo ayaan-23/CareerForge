@@ -131,10 +131,62 @@
                             </form>
                         {% endif %}
                     {% endif %}
+                {% else %}
+                    <p><a href="{{ url_for('career.applicants', job_id=job.id) }}">Review applicants</a></p>
                 {% endif %}
             </article>
         {% else %}
             <p>No jobs posted yet.</p>
+        {% endfor %}
+    {% elif page == 'applicants' %}
+        <h1>Applicants for {{ job.title }}</h1>
+        <dl>
+            <dt>Required qualifications</dt><dd>{{ job.qualifications }}</dd>
+            <dt>Required skills</dt><dd>{{ job.skills }}</dd>
+        </dl>
+        <form method="get">
+            <label>Application status
+                <select name="status">
+                    <option value="">All applications</option>
+                    {% for option in ('Submitted', 'Shortlisted') %}
+                        <option value="{{ option }}" {% if status == option %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <button type="submit">Filter applicants</button>
+        </form>
+        <p>Applicants are ordered by required skills matched. Review the submitted profiles before shortlisting.</p>
+        {% for applicant in applicants %}
+            {% set application = applicant.application %}
+            {% set match = applicant.match %}
+            <article>
+                <h2>{{ applicant.profile.name }}</h2>
+                <p><strong>{{ application.status }}</strong> · Applied {{ application.submitted_at[:10] }}</p>
+                {% if match %}
+                    <p><strong>{{ match.score }}% skill match</strong> · {{ match.matched | length }} of {{ match.total }} required skills</p>
+                    <dl>
+                        <dt>Matched skills</dt><dd>{{ match.matched | join(', ') if match.matched else 'None' }}</dd>
+                        <dt>Missing skills</dt><dd>{{ match.missing | join(', ') if match.missing else 'None' }}</dd>
+                    </dl>
+                {% endif %}
+                <details>
+                    <summary>Submitted profile</summary>
+                    <dl>
+                        <dt>Contact email</dt><dd>{{ applicant.profile.email }}</dd>
+                        {% for key, label in profile_fields.items() %}
+                            <dt>{{ label }}</dt><dd>{{ applicant.profile[key] or 'None listed' }}</dd>
+                        {% endfor %}
+                    </dl>
+                </details>
+                {% if application.status == 'Submitted' %}
+                    <form method="post" action="{{ url_for('career.shortlist_applicant', job_id=job.id, student_id=application.student_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit">Shortlist {{ applicant.profile.name }}</button>
+                    </form>
+                {% endif %}
+            </article>
+        {% else %}
+            <p>No applications match this view.</p>
         {% endfor %}
     {% else %}
         <h1>{{ 'Student profile' if page == 'profile' else 'Post a job' }}</h1>
