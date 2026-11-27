@@ -76,7 +76,13 @@
         <p>Welcome, {{ g.career_user.name }}.</p>
         {% if g.career_user.role == 'student' %}
             <a class="button" href="{{ url_for('career.profile') }}">Edit profile</a>
-            <h2>Available jobs</h2>
+            {% if has_profile_skills %}
+                <h2>Jobs by skill match</h2>
+                <p>Scores compare your listed skills with each job’s required skills. Review qualifications separately.</p>
+            {% else %}
+                <h2>Available jobs</h2>
+                <p>Add skills to your profile to see personalized match scores.</p>
+            {% endif %}
         {% else %}
             <a class="button" href="{{ url_for('career.new_job') }}">Post a job</a>
             <h2>Your job postings</h2>
@@ -90,6 +96,26 @@
                     <dt>Required qualifications</dt><dd>{{ job.qualifications }}</dd>
                     <dt>Required skills</dt><dd>{{ job.skills }}</dd>
                 </dl>
+                {% if has_profile_skills %}
+                    {% set match = matches[job.id] %}
+                    {% if match %}
+                        <details>
+                            <summary><strong>{{ match.score }}% skill match</strong> · {{ match.matched | length }} of {{ match.total }} required skills</summary>
+                            <p>Score = matched required skills ÷ total required skills × 100.</p>
+                            <dl>
+                                <dt>Matched skills</dt>
+                                <dd>{{ match.matched | join(', ') if match.matched else 'None yet' }}</dd>
+                                <dt>Missing skills</dt>
+                                <dd>{{ match.missing | join(', ') if match.missing else 'None' }}</dd>
+                            </dl>
+                            {% if match.missing %}
+                                <p>Practice a missing skill in a small project, then add it to your profile once you can demonstrate it.</p>
+                            {% endif %}
+                        </details>
+                    {% else %}
+                        <p>Skill match unavailable for this posting.</p>
+                    {% endif %}
+                {% endif %}
             </article>
         {% else %}
             <p>No jobs posted yet.</p>
@@ -105,6 +131,9 @@
                             <input name="{{ key }}" value="{{ values[key] | default('') }}" maxlength="4000" required>
                         {% else %}
                             <textarea name="{{ key }}" maxlength="4000" {% if page == 'job' or key in ('education', 'skills') %}required{% endif %}>{{ values[key] | default('') }}</textarea>
+                        {% endif %}
+                        {% if key == 'skills' %}
+                            <small>Separate skills with commas or put each skill on its own line.</small>
                         {% endif %}
                     </label>
                 {% endfor %}
