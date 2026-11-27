@@ -76,6 +76,7 @@
         <p>Welcome, {{ g.career_user.name }}.</p>
         {% if g.career_user.role == 'student' %}
             <a class="button" href="{{ url_for('career.profile') }}">Edit profile</a>
+            <a class="button" href="{{ url_for('career.practice_history') }}">Interview history</a>
             {% if has_profile_skills %}
                 <h2>Jobs by skill match</h2>
                 <p>Scores compare your listed skills with each job’s required skills. Review qualifications separately.</p>
@@ -123,6 +124,10 @@
                     {% endif %}
                     {% if has_profile_skills %}
                         <p><a href="{{ url_for('career.download_resume', job_id=job.id) }}">Download tailored resume (.docx)</a></p>
+                        <form method="post" action="{{ url_for('career.start_practice', job_id=job.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit">Practice interview</button>
+                        </form>
                         {% if not application %}
                             <form method="post" action="{{ url_for('career.apply_for_job', job_id=job.id) }}">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -137,6 +142,54 @@
             </article>
         {% else %}
             <p>No jobs posted yet.</p>
+        {% endfor %}
+    {% elif page == 'practice_history' %}
+        <h1>Interview history</h1>
+        {% for attempt in attempts %}
+            <article>
+                <h2>{{ attempt.title }} · {{ attempt.company }}</h2>
+                {% if attempt.completed_at %}
+                    <p>{{ attempt.score }} / 100 · Completed {{ attempt.completed_at[:10] }}</p>
+                    {% if attempt.badge %}<p>Badge earned · {{ attempt.badge }}</p>{% endif %}
+                {% endif %}
+                <a href="{{ url_for('career.practice', attempt_id=attempt.id) }}">{{ 'Review feedback' if attempt.completed_at else 'Continue interview' }}</a>
+            </article>
+        {% else %}
+            <p>Start a practice interview from a job on your dashboard.</p>
+        {% endfor %}
+    {% elif page == 'practice' %}
+        <h1>Practice interview for {{ attempt.title }}</h1>
+        <p>Answer each question in your own words. You can leave a question blank if you want to skip it.</p>
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% for item in questions %}
+                <section>
+                    <label>{{ loop.index }}. {{ item.question }}
+                        <small>({{ item.category }})</small>
+                        <textarea name="answer" maxlength="4000">{{ answers[loop.index0] | default('') }}</textarea>
+                    </label>
+                </section>
+            {% endfor %}
+            <button type="submit">Submit interview</button>
+        </form>
+    {% elif page == 'practice_result' %}
+        <h1>Interview results for {{ attempt.title }}</h1>
+        <p><strong>{{ attempt.score }} / 100</strong> · Average of all question scores</p>
+        {% if attempt.badge %}<p><strong>Badge earned · {{ attempt.badge }}</strong></p>{% endif %}
+        <p>Answer every question and score at least {{ badge_minimum }} / 100 to earn the Interview Ready badge for this attempt.</p>
+        <p><a href="{{ url_for('career.practice_history') }}">Interview history</a></p>
+        {% for result in results %}
+            <article>
+                <h2>{{ loop.index }}. {{ result.question }}</h2>
+                <p>{{ result.category }} · {{ result.score }} / 100</p>
+                <p><strong>Your answer</strong> {{ result.answer or 'Skipped' }}</p>
+                {% if result.feedback is string %}
+                    <p>{{ result.feedback }}</p>
+                {% else %}
+                    <ul>{% for feedback in result.feedback %}<li>{{ feedback }}</li>{% endfor %}</ul>
+                {% endif %}
+                {% if result.suggested_answer %}<p><strong>Suggested answer</strong> {{ result.suggested_answer }}</p>{% endif %}
+            </article>
         {% endfor %}
     {% elif page == 'applicants' %}
         <h1>Applicants for {{ job.title }}</h1>
