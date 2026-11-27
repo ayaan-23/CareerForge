@@ -386,3 +386,69 @@ def apply_for_job(job_id):
     else:
         flash("You already applied for this job.")
     return redirect(url_for("career.dashboard", _anchor=f"job-{job_id}"))
+
+
+def recruiter_job(job_id):
+    job = get_db().execute(
+        "SELECT * FROM jobs WHERE id = ? AND recruiter_id = ?",
+        (job_id, g.career_user["id"]),
+    ).fetchone()
+    if job is None:
+        abort(404)
+    return job
+
+
+@career.get("/jobs/<int:job_id>/applicants")
+@require_role("recruiter")
+def applicants(job_id):
+    job = recruiter_job(job_id)
+    status = request.args.get("status", "")
+    if status not in ("", "Submitted", "Shortlisted"):
+        abort(400)
+
+    applicants = []
+    rows = get_db().execute(
+        """
+        SELECT student_id, profile_snapshot, status, submitted_at
+        FROM applications
+        WHERE job_id = ? AND (? = '' OR status = ?)
+        ORDER BY submitted_at, student_id
+        """,
+        (job_id, status, status),
+    )
+    for row in rows:
+        profile = json.loads(row["profile_snapshot"])
+        match = job_match(skill_entries(profile["skills"]), job["skills"])
+        applicants.append({"application": row, "profile": profile, "match": match})
+    applicants.sort(
+        key=lambda applicant: applicant["match"]["score"] if applicant["match"] else -1,
+        reverse=True,
+    )
+    return render_template(
+        "career.html", page="applicants", job=job, applicants=applicants,
+        status=status, profile_fields=PROFILE_FIELDS,
+    )
+
+
+@career.post("/jobs/<int:job_id>/applicants/<int:student_id>/shortlist")
+@require_role("recruiter")
+def shortlist_applicant(job_id, student_id):
+    recruiter_job(job_id)
+    db = get_db()
+    with db:
+        result = db.execute(
+            """
+            UPDATE applications SET status = 'Shortlisted'
+            WHERE job_id = ? AND student_id = ? AND status = 'Submitted'
+            """,
+            (job_id, student_id),
+        )
+        if not result.rowcount:
+            existing = db.execute(
+                "SELECT status FROM applications WHERE job_id = ? AND student_id = ?",
+                (job_id, student_id),
+            ).fetchone()
+            if existing is None:
+                abort(404)
+    flash("Applicant shortlisted." if result.rowcount else "Applicant is already shortlisted.")
+    return redirect(url_for("career.applicants", job_id=job_id))
