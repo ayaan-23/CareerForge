@@ -71,6 +71,13 @@ CREATE TABLE IF NOT EXISTS practice_interviews (
     completed_at TEXT
 );
 CREATE INDEX IF NOT EXISTS practice_interviews_student ON practice_interviews(student_id);
+CREATE TABLE IF NOT EXISTS shared_interview_badges (
+    student_id INTEGER NOT NULL,
+    job_id INTEGER NOT NULL,
+    badge TEXT NOT NULL,
+    PRIMARY KEY (student_id, job_id),
+    FOREIGN KEY (student_id, job_id) REFERENCES applications(student_id, job_id)
+);
 """
 
 
@@ -232,7 +239,19 @@ def dashboard():
         ).fetchone()
         applications = {
             row["job_id"]: row for row in db.execute(
-                "SELECT job_id, status, submitted_at FROM applications WHERE student_id = ?",
+                """
+                SELECT applications.job_id, status, submitted_at, shared.badge,
+                       EXISTS (
+                           SELECT 1 FROM practice_interviews AS practice
+                           WHERE practice.student_id = applications.student_id
+                             AND practice.job_id = applications.job_id
+                             AND practice.badge IS NOT NULL
+                             AND practice.completed_at IS NOT NULL
+                       ) AS can_share_badge
+                FROM applications
+                LEFT JOIN shared_interview_badges AS shared USING (student_id, job_id)
+                WHERE applications.student_id = ?
+                """,
                 (g.career_user["id"],),
             )
         }
@@ -423,10 +442,11 @@ def applicants(job_id):
     applicants = []
     rows = get_db().execute(
         """
-        SELECT student_id, profile_snapshot, status, submitted_at
+        SELECT applications.student_id, profile_snapshot, status, submitted_at, shared.badge
         FROM applications
-        WHERE job_id = ? AND (? = '' OR status = ?)
-        ORDER BY submitted_at, student_id
+        LEFT JOIN shared_interview_badges AS shared USING (student_id, job_id)
+        WHERE applications.job_id = ? AND (? = '' OR status = ?)
+        ORDER BY submitted_at, applications.student_id
         """,
         (job_id, status, status),
     )
@@ -566,3 +586,41 @@ def practice(attempt_id):
             (json.dumps(results), score, badge, attempt_id, g.career_user["id"]),
         )
     return redirect(url_for("career.practice", attempt_id=attempt_id))
+
+
+@career.post("/jobs/<int:job_id>/application/badge")
+@require_role("student")
+def update_shared_badge(job_id):
+    student_id = g.career_user["id"]
+    db = get_db()
+    application = db.execute(
+        "SELECT 1 FROM applications WHERE student_id = ? AND job_id = ?",
+        (student_id, job_id),
+    ).fetchone()
+    if application is None:
+        abort(404)
+
+    action = request.form.get("action")
+    with db:
+        if action == "share":
+            result = db.execute(
+                """
+                INSERT INTO shared_interview_badges (student_id, job_id, badge)
+                SELECT student_id, job_id, badge FROM practice_interviews
+                WHERE student_id = ? AND job_id = ? AND badge IS NOT NULL
+                  AND completed_at IS NOT NULL
+                ORDER BY id DESC LIMIT 1
+                ON CONFLICT(student_id, job_id) DO UPDATE SET badge = excluded.badge
+                """,
+                (student_id, job_id),
+            )
+            flash("Interview badge shared." if result.rowcount else "Earn a badge for this job before sharing.")
+        elif action == "remove":
+            db.execute(
+                "DELETE FROM shared_interview_badges WHERE student_id = ? AND job_id = ?",
+                (student_id, job_id),
+            )
+            flash("Interview badge sharing removed.")
+        else:
+            abort(400)
+    return redirect(url_for("career.dashboard", _anchor=f"job-{job_id}"))
