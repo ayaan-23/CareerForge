@@ -11,7 +11,7 @@ from flask_wtf.csrf import CSRFProtect, generate_csrf
 from apscheduler.schedulers.background import BackgroundScheduler
 import os
 import uuid
-import pymupdf
+import fitz as pymupdf
 import time
 import json
 import re
