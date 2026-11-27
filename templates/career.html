@@ -84,6 +84,14 @@
                 <h2>Available jobs</h2>
                 <p>Add skills to your profile to see personalized match scores.</p>
             {% endif %}
+            <form method="get" action="{{ url_for('career.dashboard') }}">
+                <label>Search jobs
+                    <input type="search" name="q" value="{{ query }}" maxlength="100"
+                           placeholder="Job title, company, or skill">
+                </label>
+                <button type="submit">Search</button>
+                {% if query %}<a href="{{ url_for('career.dashboard') }}">Clear search</a>{% endif %}
+            </form>
         {% else %}
             <a class="button" href="{{ url_for('career.new_job') }}">Post a job</a>
             <h2>Your job postings</h2>
@@ -153,7 +161,7 @@
                 {% endif %}
             </article>
         {% else %}
-            <p>No jobs posted yet.</p>
+            <p>{{ 'No jobs match your search.' if query else 'No jobs posted yet.' }}</p>
         {% endfor %}
     {% elif page == 'practice_history' %}
         <h1>Interview history</h1>
