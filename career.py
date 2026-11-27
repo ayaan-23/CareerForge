@@ -50,6 +50,9 @@ CREATE TABLE IF NOT EXISTS jobs (
     qualifications TEXT NOT NULL,
     skills TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS closed_jobs (
+    job_id INTEGER PRIMARY KEY REFERENCES jobs(id)
+);
 CREATE TABLE IF NOT EXISTS applications (
     student_id INTEGER NOT NULL REFERENCES users(id),
     job_id INTEGER NOT NULL REFERENCES jobs(id),
@@ -231,9 +234,35 @@ def dashboard():
     db = get_db()
     matches = {}
     applications = {}
+    query = ""
+    tracking = False
     student_skills = {}
     if g.career_user["role"] == "student":
-        jobs = db.execute("SELECT * FROM jobs ORDER BY id DESC").fetchall()
+        query = request.args.get("q", "").strip()[:100]
+        tracking = request.args.get("view") == "applications"
+        if tracking:
+            query = ""
+        jobs = db.execute(
+            """
+            SELECT jobs.*, closed_jobs.job_id IS NOT NULL AS closed
+            FROM jobs LEFT JOIN closed_jobs ON closed_jobs.job_id = jobs.id
+            WHERE CASE WHEN ? THEN EXISTS (
+                SELECT 1 FROM applications
+                WHERE applications.job_id = jobs.id AND student_id = ?
+            ) ELSE closed_jobs.job_id IS NULL END
+            ORDER BY jobs.id DESC
+            """,
+            (tracking, g.career_user["id"]),
+        ).fetchall()
+        if query:
+            terms = query.casefold().split()
+            jobs = [
+                job for job in jobs
+                if all(
+                    any(term in job[field].casefold() for field in ("title", "company", "skills"))
+                    for term in terms
+                )
+            ]
         saved_profile = db.execute(
             "SELECT skills FROM profiles WHERE student_id = ?", (g.career_user["id"],)
         ).fetchone()
@@ -257,7 +286,7 @@ def dashboard():
         }
         if saved_profile:
             student_skills = skill_entries(saved_profile["skills"])
-        if student_skills:
+        if student_skills and not tracking:
             matches = {job["id"]: job_match(student_skills, job["skills"]) for job in jobs}
             jobs.sort(
                 key=lambda job: matches[job["id"]]["score"] if matches[job["id"]] else -1,
@@ -265,12 +294,17 @@ def dashboard():
             )
     else:
         jobs = db.execute(
-            "SELECT * FROM jobs WHERE recruiter_id = ? ORDER BY id DESC",
+            """
+            SELECT jobs.*, closed_jobs.job_id IS NOT NULL AS closed
+            FROM jobs LEFT JOIN closed_jobs ON closed_jobs.job_id = jobs.id
+            WHERE recruiter_id = ? ORDER BY jobs.id DESC
+            """,
             (g.career_user["id"],),
         ).fetchall()
     return render_template(
         "career.html", page="dashboard", jobs=jobs, matches=matches,
-        has_profile_skills=bool(student_skills), applications=applications,
+        has_profile_skills=bool(student_skills), applications=applications, query=query,
+        tracking=tracking,
     )
 
 
@@ -312,10 +346,12 @@ def profile():
 
 
 @career.route("/jobs/new", methods=["GET", "POST"])
+@career.route("/jobs/<int:job_id>/edit", methods=["GET", "POST"])
 @require_role("recruiter")
-def new_job():
+def new_job(job_id=None):
+    job = recruiter_job(job_id) if job_id is not None else None
     if request.method == "GET":
-        return render_template("career.html", page="job", fields=JOB_FIELDS, values={})
+        return render_template("career.html", page="job", fields=JOB_FIELDS, values=job or {}, editing=job is not None)
 
     values = {key: request.form.get(key, "").strip() for key in JOB_FIELDS}
     if not skill_entries(values["skills"]) or any(
@@ -323,10 +359,22 @@ def new_job():
     ):
         flash("Fill in every field and keep each entry within 4,000 characters.")
         return render_template(
-            "career.html", page="job", fields=JOB_FIELDS, values=values
+            "career.html", page="job", fields=JOB_FIELDS, values=values, editing=job is not None
         ), 400
 
     db = get_db()
+    if job is not None:
+        with db:
+            db.execute(
+                """
+                UPDATE jobs SET title = ?, company = ?, description = ?, qualifications = ?, skills = ?
+                WHERE id = ? AND recruiter_id = ?
+                """,
+                (*values.values(), job_id, g.career_user["id"]),
+            )
+        flash("Job updated.")
+        return redirect(url_for("career.dashboard", _anchor=f"job-{job_id}"))
+
     with db:
         db.execute(
             """
@@ -409,13 +457,15 @@ def apply_for_job(job_id):
         result = db.execute(
             """
             INSERT INTO applications (student_id, job_id, profile_snapshot)
-            VALUES (?, ?, ?)
+            SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM closed_jobs WHERE job_id = ?)
             ON CONFLICT(student_id, job_id) DO NOTHING
             """,
-            (g.career_user["id"], job_id, json.dumps(dict(saved_profile))),
+            (g.career_user["id"], job_id, json.dumps(dict(saved_profile)), job_id),
         )
     if result.rowcount:
         flash("Application submitted.")
+    elif db.execute("SELECT 1 FROM closed_jobs WHERE job_id = ?", (job_id,)).fetchone():
+        flash("This job is closed to new applications.")
     else:
         flash("You already applied for this job.")
     return redirect(url_for("career.dashboard", _anchor=f"job-{job_id}"))
@@ -623,4 +673,18 @@ def update_shared_badge(job_id):
             flash("Interview badge sharing removed.")
         else:
             abort(400)
+    return redirect(url_for("career.dashboard", view="applications", _anchor=f"job-{job_id}"))
+
+
+@career.post("/jobs/<int:job_id>/close")
+@require_role("recruiter")
+def close_job(job_id):
+    recruiter_job(job_id)
+    db = get_db()
+    with db:
+        db.execute(
+            "INSERT INTO closed_jobs (job_id) VALUES (?) ON CONFLICT(job_id) DO NOTHING",
+            (job_id,),
+        )
+    flash("Job closed to new applications.")
     return redirect(url_for("career.dashboard", _anchor=f"job-{job_id}"))
