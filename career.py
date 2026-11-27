@@ -1,12 +1,15 @@
 """Student profiles and recruiter job postings."""
+import json
 import re
 import sqlite3
 from functools import wraps
+from io import BytesIO
 from pathlib import Path
 
+from docx import Document
 from flask import (
     Blueprint, abort, current_app, flash, g, redirect, render_template,
-    request, session, url_for,
+    request, send_file, session, url_for,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -45,6 +48,14 @@ CREATE TABLE IF NOT EXISTS jobs (
     description TEXT NOT NULL,
     qualifications TEXT NOT NULL,
     skills TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS applications (
+    student_id INTEGER NOT NULL REFERENCES users(id),
+    job_id INTEGER NOT NULL REFERENCES jobs(id),
+    profile_snapshot TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Submitted',
+    submitted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (student_id, job_id)
 );
 """
 
@@ -198,12 +209,19 @@ def job_match(student_skills, required_text):
 def dashboard():
     db = get_db()
     matches = {}
+    applications = {}
     student_skills = {}
     if g.career_user["role"] == "student":
         jobs = db.execute("SELECT * FROM jobs ORDER BY id DESC").fetchall()
         saved_profile = db.execute(
             "SELECT skills FROM profiles WHERE student_id = ?", (g.career_user["id"],)
         ).fetchone()
+        applications = {
+            row["job_id"]: row for row in db.execute(
+                "SELECT job_id, status, submitted_at FROM applications WHERE student_id = ?",
+                (g.career_user["id"],),
+            )
+        }
         if saved_profile:
             student_skills = skill_entries(saved_profile["skills"])
         if student_skills:
@@ -219,7 +237,7 @@ def dashboard():
         ).fetchall()
     return render_template(
         "career.html", page="dashboard", jobs=jobs, matches=matches,
-        has_profile_skills=bool(student_skills),
+        has_profile_skills=bool(student_skills), applications=applications,
     )
 
 
@@ -286,3 +304,85 @@ def new_job():
         )
     flash("Job published.")
     return redirect(url_for("career.dashboard"))
+
+
+def job_and_profile(job_id):
+    db = get_db()
+    job = db.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+    if job is None:
+        abort(404)
+    saved_profile = db.execute(
+        """
+        SELECT users.name, users.email, profiles.education, profiles.skills,
+               profiles.projects, profiles.certifications
+        FROM profiles JOIN users ON users.id = profiles.student_id
+        WHERE profiles.student_id = ?
+        """,
+        (g.career_user["id"],),
+    ).fetchone()
+    return job, saved_profile
+
+
+@career.get("/jobs/<int:job_id>/resume")
+@require_role("student")
+def download_resume(job_id):
+    job, saved_profile = job_and_profile(job_id)
+    if saved_profile is None:
+        flash("Save your profile to generate a resume.")
+        return redirect(url_for("career.profile"))
+
+    document = Document()
+    document.add_heading(saved_profile["name"], 0)
+    document.add_paragraph(saved_profile["email"])
+    document.add_paragraph(f'Target role: {job["title"]} at {job["company"]}')
+
+    skills = skill_entries(saved_profile["skills"])
+    required = skill_entries(job["skills"])
+    relevant = [skills[key] for key in skills if key in required]
+    additional = [skills[key] for key in skills if key not in required]
+    for heading, entries in (("Relevant skills", relevant), ("Additional skills", additional)):
+        if entries:
+            document.add_heading(heading, level=1)
+            document.add_paragraph(", ".join(entries))
+
+    for key in ("education", "projects", "certifications"):
+        if saved_profile[key]:
+            document.add_heading(PROFILE_FIELDS[key], level=1)
+            for line in saved_profile[key].splitlines():
+                if line.strip():
+                    document.add_paragraph(line.strip())
+
+    output = BytesIO()
+    document.save(output)
+    output.seek(0)
+    response = send_file(
+        output, as_attachment=True, download_name=f"careerforge-resume-{job_id}.docx",
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+    response.cache_control.no_store = True
+    return response
+
+
+@career.post("/jobs/<int:job_id>/apply")
+@require_role("student")
+def apply_for_job(job_id):
+    _, saved_profile = job_and_profile(job_id)
+    if saved_profile is None:
+        flash("Save your profile before applying.")
+        return redirect(url_for("career.profile"))
+
+    db = get_db()
+    with db:
+        result = db.execute(
+            """
+            INSERT INTO applications (student_id, job_id, profile_snapshot)
+            VALUES (?, ?, ?)
+            ON CONFLICT(student_id, job_id) DO NOTHING
+            """,
+            (g.career_user["id"], job_id, json.dumps(dict(saved_profile))),
+        )
+    if result.rowcount:
+        flash("Application submitted.")
+    else:
+        flash("You already applied for this job.")
+    return redirect(url_for("career.dashboard", _anchor=f"job-{job_id}"))
