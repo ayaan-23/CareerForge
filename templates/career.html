@@ -77,13 +77,20 @@
         {% if g.career_user.role == 'student' %}
             <a class="button" href="{{ url_for('career.profile') }}">Edit profile</a>
             <a class="button" href="{{ url_for('career.practice_history') }}">Interview history</a>
-            {% if has_profile_skills %}
+            {% if tracking %}
+                <a class="button" href="{{ url_for('career.dashboard') }}">Browse jobs</a>
+                <h2>My applications</h2>
+            {% else %}
+                <a class="button" href="{{ url_for('career.dashboard', view='applications') }}">My applications</a>
+            {% endif %}
+            {% if not tracking and has_profile_skills %}
                 <h2>Jobs by skill match</h2>
                 <p>Scores compare your listed skills with each job’s required skills. Review qualifications separately.</p>
-            {% else %}
+            {% elif not tracking %}
                 <h2>Available jobs</h2>
                 <p>Add skills to your profile to see personalized match scores.</p>
             {% endif %}
+            {% if not tracking %}
             <form method="get" action="{{ url_for('career.dashboard') }}">
                 <label>Search jobs
                     <input type="search" name="q" value="{{ query }}" maxlength="100"
@@ -92,6 +99,7 @@
                 <button type="submit">Search</button>
                 {% if query %}<a href="{{ url_for('career.dashboard') }}">Clear search</a>{% endif %}
             </form>
+            {% endif %}
         {% else %}
             <a class="button" href="{{ url_for('career.new_job') }}">Post a job</a>
             <h2>Your job postings</h2>
@@ -100,12 +108,13 @@
             <article id="job-{{ job.id }}">
                 <h3>{{ job.title }}</h3>
                 <p>{{ job.company }}</p>
+                {% if job.closed %}<p><strong>Closed to new applications</strong></p>{% endif %}
                 <p>{{ job.description }}</p>
                 <dl>
                     <dt>Required qualifications</dt><dd>{{ job.qualifications }}</dd>
                     <dt>Required skills</dt><dd>{{ job.skills }}</dd>
                 </dl>
-                {% if has_profile_skills %}
+                {% if has_profile_skills and not tracking %}
                     {% set match = matches[job.id] %}
                     {% if match %}
                         <details>
@@ -148,7 +157,7 @@
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit">Practice interview</button>
                         </form>
-                        {% if not application %}
+                        {% if not application and not job.closed %}
                             <form method="post" action="{{ url_for('career.apply_for_job', job_id=job.id) }}">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <p>Applying shares a copy of your current profile, including your contact email, with the recruiter for this job.</p>
@@ -158,10 +167,17 @@
                     {% endif %}
                 {% else %}
                     <p><a href="{{ url_for('career.applicants', job_id=job.id) }}">Review applicants</a></p>
+                    <p><a href="{{ url_for('career.new_job', job_id=job.id) }}">Edit job</a></p>
+                    {% if not job.closed %}
+                        <form method="post" action="{{ url_for('career.close_job', job_id=job.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit">Close job</button>
+                        </form>
+                    {% endif %}
                 {% endif %}
             </article>
         {% else %}
-            <p>{{ 'No jobs match your search.' if query else 'No jobs posted yet.' }}</p>
+            <p>{{ 'No jobs match your search.' if query else 'You haven’t applied to any jobs yet.' if tracking else 'No jobs posted yet.' }}</p>
         {% endfor %}
     {% elif page == 'practice_history' %}
         <h1>Interview history</h1>
@@ -265,7 +281,7 @@
             <p>No applications match this view.</p>
         {% endfor %}
     {% else %}
-        <h1>{{ 'Student profile' if page == 'profile' else 'Post a job' }}</h1>
+        <h1>{{ 'Student profile' if page == 'profile' else 'Edit job' if editing else 'Post a job' }}</h1>
         <section>
             <form method="post">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -281,7 +297,7 @@
                         {% endif %}
                     </label>
                 {% endfor %}
-                <button type="submit">{{ 'Save profile' if page == 'profile' else 'Publish job' }}</button>
+                <button type="submit">{{ 'Save profile' if page == 'profile' else 'Save changes' if editing else 'Publish job' }}</button>
             </form>
         </section>
     {% endif %}
