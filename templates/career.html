@@ -121,6 +121,18 @@
                     {% set application = applications.get(job.id) %}
                     {% if application %}
                         <p><strong>Application status</strong> {{ application.status }} · Applied {{ application.submitted_at[:10] }}</p>
+                        {% if application.badge or application.can_share_badge %}
+                            <form method="post" action="{{ url_for('career.update_shared_badge', job_id=job.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                {% if application.badge %}
+                                    <p>Shared with recruiter · {{ application.badge }}</p>
+                                    <button type="submit" name="action" value="remove">Stop sharing badge</button>
+                                {% else %}
+                                    <p>You can share your earned badge with this recruiter. Your answers and feedback stay private.</p>
+                                    <button type="submit" name="action" value="share">Share interview badge</button>
+                                {% endif %}
+                            </form>
+                        {% endif %}
                     {% endif %}
                     {% if has_profile_skills %}
                         <p><a href="{{ url_for('career.download_resume', job_id=job.id) }}">Download tailored resume (.docx)</a></p>
@@ -215,6 +227,9 @@
             <article>
                 <h2>{{ applicant.profile.name }}</h2>
                 <p><strong>{{ application.status }}</strong> · Applied {{ application.submitted_at[:10] }}</p>
+                {% if application.badge %}
+                    <p><strong>Shared interview badge</strong> · {{ application.badge }}</p>
+                {% endif %}
                 {% if match %}
                     <p><strong>{{ match.score }}% skill match</strong> · {{ match.matched | length }} of {{ match.total }} required skills</p>
                     <dl>
