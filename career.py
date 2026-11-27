@@ -231,9 +231,20 @@ def dashboard():
     db = get_db()
     matches = {}
     applications = {}
+    query = ""
     student_skills = {}
     if g.career_user["role"] == "student":
+        query = request.args.get("q", "").strip()[:100]
         jobs = db.execute("SELECT * FROM jobs ORDER BY id DESC").fetchall()
+        if query:
+            terms = query.casefold().split()
+            jobs = [
+                job for job in jobs
+                if all(
+                    any(term in job[field].casefold() for field in ("title", "company", "skills"))
+                    for term in terms
+                )
+            ]
         saved_profile = db.execute(
             "SELECT skills FROM profiles WHERE student_id = ?", (g.career_user["id"],)
         ).fetchone()
@@ -270,7 +281,7 @@ def dashboard():
         ).fetchall()
     return render_template(
         "career.html", page="dashboard", jobs=jobs, matches=matches,
-        has_profile_skills=bool(student_skills), applications=applications,
+        has_profile_skills=bool(student_skills), applications=applications, query=query,
     )
 
 
