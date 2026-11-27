@@ -13,6 +13,7 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from interview_generator import evaluate_answer, generate_interview_questions
 from scoring import calculate_skill_score
 
 career = Blueprint("career", __name__, url_prefix="/career")
@@ -57,6 +58,19 @@ CREATE TABLE IF NOT EXISTS applications (
     submitted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (student_id, job_id)
 );
+CREATE TABLE IF NOT EXISTS practice_interviews (
+    id INTEGER PRIMARY KEY,
+    student_id INTEGER NOT NULL REFERENCES users(id),
+    job_id INTEGER NOT NULL REFERENCES jobs(id),
+    questions TEXT NOT NULL,
+    job_context TEXT NOT NULL,
+    profile_context TEXT NOT NULL,
+    results TEXT,
+    score REAL,
+    badge TEXT,
+    completed_at TEXT
+);
+CREATE INDEX IF NOT EXISTS practice_interviews_student ON practice_interviews(student_id);
 """
 
 
@@ -452,3 +466,103 @@ def shortlist_applicant(job_id, student_id):
                 abort(404)
     flash("Applicant shortlisted." if result.rowcount else "Applicant is already shortlisted.")
     return redirect(url_for("career.applicants", job_id=job_id))
+
+
+BADGE_MINIMUM = 75
+BADGE_NAME = "Interview Ready"
+
+
+@career.post("/jobs/<int:job_id>/practice")
+@require_role("student")
+def start_practice(job_id):
+    job, saved_profile = job_and_profile(job_id)
+    if saved_profile is None:
+        flash("Save your profile to start a mock interview.")
+        return redirect(url_for("career.profile"))
+
+    job_context = "\n".join(job[key] for key in ("title", "description", "qualifications", "skills"))
+    profile_context = "\n".join(
+        f"{label}: {saved_profile[key]}" for key, label in PROFILE_FIELDS.items()
+    )
+    questions = generate_interview_questions(job_context, profile_context)
+    db = get_db()
+    with db:
+        attempt = db.execute(
+            """
+            INSERT INTO practice_interviews
+                (student_id, job_id, questions, job_context, profile_context)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (g.career_user["id"], job_id, json.dumps(questions), job_context, profile_context),
+        )
+    return redirect(url_for("career.practice", attempt_id=attempt.lastrowid))
+
+
+@career.get("/practice")
+@require_role("student")
+def practice_history():
+    attempts = get_db().execute(
+        """
+        SELECT practice_interviews.id, jobs.title, jobs.company, score, badge, completed_at
+        FROM practice_interviews JOIN jobs ON jobs.id = practice_interviews.job_id
+        WHERE practice_interviews.student_id = ?
+        ORDER BY practice_interviews.id DESC
+        """,
+        (g.career_user["id"],),
+    ).fetchall()
+    return render_template("career.html", page="practice_history", attempts=attempts)
+
+
+@career.route("/practice/<int:attempt_id>", methods=["GET", "POST"])
+@require_role("student")
+def practice(attempt_id):
+    db = get_db()
+    attempt = db.execute(
+        """
+        SELECT practice_interviews.*, jobs.title, jobs.company
+        FROM practice_interviews JOIN jobs ON jobs.id = practice_interviews.job_id
+        WHERE practice_interviews.id = ? AND student_id = ?
+        """,
+        (attempt_id, g.career_user["id"]),
+    ).fetchone()
+    if attempt is None:
+        abort(404)
+    if attempt["completed_at"]:
+        if request.method == "POST":
+            return redirect(url_for("career.practice", attempt_id=attempt_id))
+        return render_template(
+            "career.html", page="practice_result", attempt=attempt,
+            results=json.loads(attempt["results"]), badge_minimum=BADGE_MINIMUM,
+        )
+
+    questions = json.loads(attempt["questions"])
+    if request.method == "GET":
+        return render_template(
+            "career.html", page="practice", attempt=attempt, questions=questions, answers=[]
+        )
+
+    answers = [answer.strip() for answer in request.form.getlist("answer")]
+    if len(answers) != len(questions) or any(len(answer) > 4000 for answer in answers):
+        flash("Submit one response field per question, with up to 4,000 characters each.")
+        return render_template(
+            "career.html", page="practice", attempt=attempt, questions=questions, answers=answers,
+        ), 400
+
+    results = []
+    for item, answer in zip(questions, answers):
+        evaluation = evaluate_answer(
+            item["question"], answer, attempt["job_context"], attempt["profile_context"]
+        )
+        results.append({**item, "answer": answer, **evaluation})
+    score = round(sum(result["score"] for result in results) / len(results), 2)
+    badge = BADGE_NAME if all(answers) and score >= BADGE_MINIMUM else None
+    with db:
+        db.execute(
+            """
+            UPDATE practice_interviews
+            SET results = ?, score = ?, badge = ?, completed_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND student_id = ? AND completed_at IS NULL
+            """,
+            (json.dumps(results), score, badge, attempt_id, g.career_user["id"]),
+        )
+    return redirect(url_for("career.practice", attempt_id=attempt_id))
