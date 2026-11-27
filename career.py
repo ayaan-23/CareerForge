@@ -1,4 +1,5 @@
 """Student profiles and recruiter job postings."""
+import re
 import sqlite3
 from functools import wraps
 from pathlib import Path
@@ -8,6 +9,8 @@ from flask import (
     request, session, url_for,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
+
+from scoring import calculate_skill_score
 
 career = Blueprint("career", __name__, url_prefix="/career")
 ROLES = {"student", "recruiter"}
@@ -167,18 +170,57 @@ def logout():
     return redirect(url_for("career.login"))
 
 
+def skill_entries(text):
+    """Read explicit skill lists while preserving the recruiter's spelling."""
+    entries = {}
+    for skill in re.split(r"[,;\n]+", text):
+        label = " ".join(skill.split())
+        if label:
+            entries.setdefault(label.casefold(), label)
+    return entries
+
+
+def job_match(student_skills, required_text):
+    required = skill_entries(required_text)
+    if not required:
+        return None
+
+    return {
+        "score": calculate_skill_score(student_skills, required),
+        "matched": [label for key, label in required.items() if key in student_skills],
+        "missing": [label for key, label in required.items() if key not in student_skills],
+        "total": len(required),
+    }
+
+
 @career.get("/dashboard")
 @require_role()
 def dashboard():
     db = get_db()
+    matches = {}
+    student_skills = {}
     if g.career_user["role"] == "student":
         jobs = db.execute("SELECT * FROM jobs ORDER BY id DESC").fetchall()
+        saved_profile = db.execute(
+            "SELECT skills FROM profiles WHERE student_id = ?", (g.career_user["id"],)
+        ).fetchone()
+        if saved_profile:
+            student_skills = skill_entries(saved_profile["skills"])
+        if student_skills:
+            matches = {job["id"]: job_match(student_skills, job["skills"]) for job in jobs}
+            jobs.sort(
+                key=lambda job: matches[job["id"]]["score"] if matches[job["id"]] else -1,
+                reverse=True,
+            )
     else:
         jobs = db.execute(
             "SELECT * FROM jobs WHERE recruiter_id = ? ORDER BY id DESC",
             (g.career_user["id"],),
         ).fetchall()
-    return render_template("career.html", page="dashboard", jobs=jobs)
+    return render_template(
+        "career.html", page="dashboard", jobs=jobs, matches=matches,
+        has_profile_skills=bool(student_skills),
+    )
 
 
 @career.route("/profile", methods=["GET", "POST"])
@@ -195,7 +237,7 @@ def profile():
         )
 
     values = {key: request.form.get(key, "").strip() for key in PROFILE_FIELDS}
-    if not values["education"] or not values["skills"] or any(
+    if not values["education"] or not skill_entries(values["skills"]) or any(
         len(value) > 4000 for value in values.values()
     ):
         flash("Education and skills are required. Each field can contain up to 4,000 characters.")
@@ -225,7 +267,9 @@ def new_job():
         return render_template("career.html", page="job", fields=JOB_FIELDS, values={})
 
     values = {key: request.form.get(key, "").strip() for key in JOB_FIELDS}
-    if any(not value or len(value) > 4000 for value in values.values()):
+    if not skill_entries(values["skills"]) or any(
+        not value or len(value) > 4000 for value in values.values()
+    ):
         flash("Fill in every field and keep each entry within 4,000 characters.")
         return render_template(
             "career.html", page="job", fields=JOB_FIELDS, values=values
