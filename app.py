@@ -3,6 +3,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask import send_file
 from report_generator import generate_report
+from career import init_career
 from docx import Document
 from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
@@ -10,7 +11,7 @@ from flask_wtf.csrf import CSRFProtect, generate_csrf
 from apscheduler.schedulers.background import BackgroundScheduler
 import os
 import uuid
-import pymupdf
+import fitz as pymupdf
 import time
 import json
 import re
@@ -73,6 +74,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+
+init_career(app, limiter)
 
 
 # =========================================================

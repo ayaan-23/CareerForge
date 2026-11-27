@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CareerForge | Career workspace</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #111; color: #f5f5f5; font: 1rem/1.55 system-ui, sans-serif; }
+        main, nav { width: min(56rem, 100% - 2rem); margin: auto; }
+        nav { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; padding: 1.25rem 0; }
+        main { padding: 1rem 0 3rem; }
+        nav strong { margin-right: auto; }
+        a, h1, h2 { color: #f5d58a; }
+        section, article { background: #202020; border: 1px solid #444; border-radius: .75rem; padding: 1.25rem; margin-bottom: 1rem; }
+        h2 { margin-top: 0; }
+        label { display: block; margin-bottom: 1rem; font-weight: 600; }
+        input, textarea, select { display: block; width: 100%; margin-top: .35rem; padding: .65rem; border: 1px solid #666; border-radius: .4rem; background: #151515; color: inherit; font: inherit; }
+        textarea { min-height: 5rem; resize: vertical; }
+        button, .button { display: inline-block; border: 0; border-radius: .4rem; background: #f5d58a; color: #111; padding: .6rem 1rem; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
+        dd { margin: .15rem 0 .75rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+        dt { font-weight: 700; }
+        article p { white-space: pre-wrap; overflow-wrap: anywhere; }
+    </style>
+</head>
+<body>
+<nav aria-label="Main navigation">
+    <strong>CareerForge</strong>
+    <a href="{{ url_for('index') }}">Resume analyzer</a>
+    {% if g.career_user %}
+        <a href="{{ url_for('career.dashboard') }}">Dashboard</a>
+        <form method="post" action="{{ url_for('career.logout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit">Sign out</button>
+        </form>
+    {% endif %}
+</nav>
+<main>
+    {% for message in get_flashed_messages() %}
+        <p role="status">{{ message }}</p>
+    {% endfor %}
+
+    {% if page in ('login', 'register') %}
+        <h1>{{ 'Create an account' if page == 'register' else 'Sign in' }}</h1>
+        <section>
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if page == 'register' %}
+                    <label>Name <input name="name" autocomplete="name" maxlength="100" required value="{{ request.form.get('name', '') }}"></label>
+                    <label>Account type
+                        <select name="role" required>
+                            <option value="student">Student</option>
+                            <option value="recruiter" {% if request.form.get('role') == 'recruiter' %}selected{% endif %}>Recruiter</option>
+                        </select>
+                    </label>
+                {% endif %}
+                <label>Email <input type="email" name="email" autocomplete="username" maxlength="254" required value="{{ request.form.get('email', '') }}"></label>
+                <label>Password
+                    {% if page == 'register' %}
+                        <input type="password" name="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+                        <small>Use at least 8 characters.</small>
+                    {% else %}
+                        <input type="password" name="password" autocomplete="current-password" maxlength="128" required>
+                    {% endif %}
+                </label>
+                <button type="submit">{{ 'Create account' if page == 'register' else 'Sign in' }}</button>
+            </form>
+            {% if page == 'register' %}
+                <p>Already registered? <a href="{{ url_for('career.login') }}">Sign in</a></p>
+            {% else %}
+                <p>New to CareerForge? <a href="{{ url_for('career.register') }}">Create an account</a></p>
+            {% endif %}
+        </section>
+    {% elif page == 'dashboard' %}
+        <h1>{{ 'Student' if g.career_user.role == 'student' else 'Recruiter' }} dashboard</h1>
+        <p>Welcome, {{ g.career_user.name }}.</p>
+        {% if g.career_user.role == 'student' %}
+            <a class="button" href="{{ url_for('career.profile') }}">Edit profile</a>
+            <a class="button" href="{{ url_for('career.practice_history') }}">Interview history</a>
+            {% if has_profile_skills %}
+                <h2>Jobs by skill match</h2>
+                <p>Scores compare your listed skills with each job’s required skills. Review qualifications separately.</p>
+            {% else %}
+                <h2>Available jobs</h2>
+                <p>Add skills to your profile to see personalized match scores.</p>
+            {% endif %}
+        {% else %}
+            <a class="button" href="{{ url_for('career.new_job') }}">Post a job</a>
+            <h2>Your job postings</h2>
+        {% endif %}
+        {% for job in jobs %}
+            <article id="job-{{ job.id }}">
+                <h3>{{ job.title }}</h3>
+                <p>{{ job.company }}</p>
+                <p>{{ job.description }}</p>
+                <dl>
+                    <dt>Required qualifications</dt><dd>{{ job.qualifications }}</dd>
+                    <dt>Required skills</dt><dd>{{ job.skills }}</dd>
+                </dl>
+                {% if has_profile_skills %}
+                    {% set match = matches[job.id] %}
+                    {% if match %}
+                        <details>
+                            <summary><strong>{{ match.score }}% skill match</strong> · {{ match.matched | length }} of {{ match.total }} required skills</summary>
+                            <p>Score = matched required skills ÷ total required skills × 100.</p>
+                            <dl>
+                                <dt>Matched skills</dt>
+                                <dd>{{ match.matched | join(', ') if match.matched else 'None yet' }}</dd>
+                                <dt>Missing skills</dt>
+                                <dd>{{ match.missing | join(', ') if match.missing else 'None' }}</dd>
+                            </dl>
+                            {% if match.missing %}
+                                <p>Practice a missing skill in a small project, then add it to your profile once you can demonstrate it.</p>
+                            {% endif %}
+                        </details>
+                    {% else %}
+                        <p>Skill match unavailable for this posting.</p>
+                    {% endif %}
+                {% endif %}
+                {% if g.career_user.role == 'student' %}
+                    {% set application = applications.get(job.id) %}
+                    {% if application %}
+                        <p><strong>Application status</strong> {{ application.status }} · Applied {{ application.submitted_at[:10] }}</p>
+                        {% if application.badge or application.can_share_badge %}
+                            <form method="post" action="{{ url_for('career.update_shared_badge', job_id=job.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                {% if application.badge %}
+                                    <p>Shared with recruiter · {{ application.badge }}</p>
+                                    <button type="submit" name="action" value="remove">Stop sharing badge</button>
+                                {% else %}
+                                    <p>You can share your earned badge with this recruiter. Your answers and feedback stay private.</p>
+                                    <button type="submit" name="action" value="share">Share interview badge</button>
+                                {% endif %}
+                            </form>
+                        {% endif %}
+                    {% endif %}
+                    {% if has_profile_skills %}
+                        <p><a href="{{ url_for('career.download_resume', job_id=job.id) }}">Download tailored resume (.docx)</a></p>
+                        <form method="post" action="{{ url_for('career.start_practice', job_id=job.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit">Practice interview</button>
+                        </form>
+                        {% if not application %}
+                            <form method="post" action="{{ url_for('career.apply_for_job', job_id=job.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <p>Applying shares a copy of your current profile, including your contact email, with the recruiter for this job.</p>
+                                <button type="submit">Apply for {{ job.title }}</button>
+                            </form>
+                        {% endif %}
+                    {% endif %}
+                {% else %}
+                    <p><a href="{{ url_for('career.applicants', job_id=job.id) }}">Review applicants</a></p>
+                {% endif %}
+            </article>
+        {% else %}
+            <p>No jobs posted yet.</p>
+        {% endfor %}
+    {% elif page == 'practice_history' %}
+        <h1>Interview history</h1>
+        {% for attempt in attempts %}
+            <article>
+                <h2>{{ attempt.title }} · {{ attempt.company }}</h2>
+                {% if attempt.completed_at %}
+                    <p>{{ attempt.score }} / 100 · Completed {{ attempt.completed_at[:10] }}</p>
+                    {% if attempt.badge %}<p>Badge earned · {{ attempt.badge }}</p>{% endif %}
+                {% endif %}
+                <a href="{{ url_for('career.practice', attempt_id=attempt.id) }}">{{ 'Review feedback' if attempt.completed_at else 'Continue interview' }}</a>
+            </article>
+        {% else %}
+            <p>Start a practice interview from a job on your dashboard.</p>
+        {% endfor %}
+    {% elif page == 'practice' %}
+        <h1>Practice interview for {{ attempt.title }}</h1>
+        <p>Answer each question in your own words. You can leave a question blank if you want to skip it.</p>
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% for item in questions %}
+                <section>
+                    <label>{{ loop.index }}. {{ item.question }}
+                        <small>({{ item.category }})</small>
+                        <textarea name="answer" maxlength="4000">{{ answers[loop.index0] | default('') }}</textarea>
+                    </label>
+                </section>
+            {% endfor %}
+            <button type="submit">Submit interview</button>
+        </form>
+    {% elif page == 'practice_result' %}
+        <h1>Interview results for {{ attempt.title }}</h1>
+        <p><strong>{{ attempt.score }} / 100</strong> · Average of all question scores</p>
+        {% if attempt.badge %}<p><strong>Badge earned · {{ attempt.badge }}</strong></p>{% endif %}
+        <p>Answer every question and score at least {{ badge_minimum }} / 100 to earn the Interview Ready badge for this attempt.</p>
+        <p><a href="{{ url_for('career.practice_history') }}">Interview history</a></p>
+        {% for result in results %}
+            <article>
+                <h2>{{ loop.index }}. {{ result.question }}</h2>
+                <p>{{ result.category }} · {{ result.score }} / 100</p>
+                <p><strong>Your answer</strong> {{ result.answer or 'Skipped' }}</p>
+                {% if result.feedback is string %}
+                    <p>{{ result.feedback }}</p>
+                {% else %}
+                    <ul>{% for feedback in result.feedback %}<li>{{ feedback }}</li>{% endfor %}</ul>
+                {% endif %}
+                {% if result.suggested_answer %}<p><strong>Suggested answer</strong> {{ result.suggested_answer }}</p>{% endif %}
+            </article>
+        {% endfor %}
+    {% elif page == 'applicants' %}
+        <h1>Applicants for {{ job.title }}</h1>
+        <dl>
+            <dt>Required qualifications</dt><dd>{{ job.qualifications }}</dd>
+            <dt>Required skills</dt><dd>{{ job.skills }}</dd>
+        </dl>
+        <form method="get">
+            <label>Application status
+                <select name="status">
+                    <option value="">All applications</option>
+                    {% for option in ('Submitted', 'Shortlisted') %}
+                        <option value="{{ option }}" {% if status == option %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <button type="submit">Filter applicants</button>
+        </form>
+        <p>Applicants are ordered by required skills matched. Review the submitted profiles before shortlisting.</p>
+        {% for applicant in applicants %}
+            {% set application = applicant.application %}
+            {% set match = applicant.match %}
+            <article>
+                <h2>{{ applicant.profile.name }}</h2>
+                <p><strong>{{ application.status }}</strong> · Applied {{ application.submitted_at[:10] }}</p>
+                {% if application.badge %}
+                    <p><strong>Shared interview badge</strong> · {{ application.badge }}</p>
+                {% endif %}
+                {% if match %}
+                    <p><strong>{{ match.score }}% skill match</strong> · {{ match.matched | length }} of {{ match.total }} required skills</p>
+                    <dl>
+                        <dt>Matched skills</dt><dd>{{ match.matched | join(', ') if match.matched else 'None' }}</dd>
+                        <dt>Missing skills</dt><dd>{{ match.missing | join(', ') if match.missing else 'None' }}</dd>
+                    </dl>
+                {% endif %}
+                <details>
+                    <summary>Submitted profile</summary>
+                    <dl>
+                        <dt>Contact email</dt><dd>{{ applicant.profile.email }}</dd>
+                        {% for key, label in profile_fields.items() %}
+                            <dt>{{ label }}</dt><dd>{{ applicant.profile[key] or 'None listed' }}</dd>
+                        {% endfor %}
+                    </dl>
+                </details>
+                {% if application.status == 'Submitted' %}
+                    <form method="post" action="{{ url_for('career.shortlist_applicant', job_id=job.id, student_id=application.student_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit">Shortlist {{ applicant.profile.name }}</button>
+                    </form>
+                {% endif %}
+            </article>
+        {% else %}
+            <p>No applications match this view.</p>
+        {% endfor %}
+    {% else %}
+        <h1>{{ 'Student profile' if page == 'profile' else 'Post a job' }}</h1>
+        <section>
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% for key, label in fields.items() %}
+                    <label>{{ label }}
+                        {% if page == 'job' and key in ('title', 'company') %}
+                            <input name="{{ key }}" value="{{ values[key] | default('') }}" maxlength="4000" required>
+                        {% else %}
+                            <textarea name="{{ key }}" maxlength="4000" {% if page == 'job' or key in ('education', 'skills') %}required{% endif %}>{{ values[key] | default('') }}</textarea>
+                        {% endif %}
+                        {% if key == 'skills' %}
+                            <small>Separate skills with commas or put each skill on its own line.</small>
+                        {% endif %}
+                    </label>
+                {% endfor %}
+                <button type="submit">{{ 'Save profile' if page == 'profile' else 'Publish job' }}</button>
+            </form>
+        </section>
+    {% endif %}
+</main>
+</body>
+</html>
